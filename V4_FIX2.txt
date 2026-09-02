@@ -1,0 +1,8 @@
+TONIX DEV V4 FIX 2
+- Home first
+- 500 starting demo credits
+- Rocket WebSocket gateway path fixed
+- Mini App API proxy/backend added
+- Developer access for Telegram ID 7795559285
+- Back button added for Rocket and Dev
+- Rocket server state remains virtual/demo only

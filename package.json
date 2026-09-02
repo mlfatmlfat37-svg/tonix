@@ -1,0 +1,14 @@
+{
+  "name": "tonix-play",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TONIX virtual-credit Telegram Mini App",
+  "main": "mock-game.js",
+  "scripts": {
+    "start": "node mock-game.js & node bot.js & exec node gateway.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.67.0",
+    "ws": "^8.18.0"
+  }
+}

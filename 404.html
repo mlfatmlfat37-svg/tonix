@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- Telegram SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Browser / Telegram demo compatibility -->
+  <script>
+    (function () {
+      const hasRealTelegram =
+        !!window.Telegram &&
+        !!window.Telegram.WebApp &&
+        !!window.Telegram.WebApp.initData &&
+        window.Telegram.WebApp.initData !== '';
+
+      /*
+       * If the page is opened directly in a normal browser,
+       * create a safe demo Telegram environment.
+       *
+       * If opened inside the real Telegram Mini App,
+       * do NOT replace the real Telegram data.
+       */
+      if (!hasRealTelegram) {
+        const mockUser = {
+          id: 1,
+          first_name: 'Developer',
+          last_name: 'Test',
+          username: 'dev_test',
+          language_code: 'ar'
+        };
+
+        const noop = function () {};
+
+        window.Telegram = window.Telegram || {};
+        window.Telegram.WebApp = window.Telegram.WebApp || {};
+
+        const tg = window.Telegram.WebApp;
+
+        tg.initData =
+          'query_id=mock_query_id' +
+          '&user=' +
+          encodeURIComponent(JSON.stringify(mockUser)) +
+          '&auth_date=' +
+          Math.floor(Date.now() / 1000);
+
+        tg.initDataUnsafe = {
+          user: mockUser,
+          query_id: 'mock_query_id',
+          auth_date: Math.floor(Date.now() / 1000)
+        };
+
+        tg.version = '6.9';
+        tg.platform = 'web';
+        tg.colorScheme = 'dark';
+
+        tg.themeParams = {
+          bg_color: '#121212',
+          secondary_bg_color: '#1a1a1a',
+          text_color: '#ffffff',
+          hint_color: '#999999',
+          link_color: '#8774E1',
+          button_color: '#8774E1',
+          button_text_color: '#ffffff'
+        };
+
+        tg.isExpanded = true;
+        tg.isFullscreen = false;
+        tg.viewportHeight = window.innerHeight;
+        tg.viewportStableHeight = window.innerHeight;
+        tg.headerColor = '#121212';
+        tg.backgroundColor = '#121212';
+
+        tg.BackButton = {
+          isVisible: false,
+          onClick: noop,
+          offClick: noop,
+          show: noop,
+          hide: noop
+        };
+
+        tg.MainButton = {
+          text: '',
+          color: '#8774E1',
+          textColor: '#ffffff',
+          isVisible: false,
+          isActive: true,
+          isProgressVisible: false,
+          setText: noop,
+          onClick: noop,
+          offClick: noop,
+          show: noop,
+          hide: noop,
+          enable: noop,
+          disable: noop,
+          showProgress: noop,
+          hideProgress: noop,
+          setParams: noop
+        };
+
+        tg.HapticFeedback = {
+          impactOccurred: noop,
+          notificationOccurred: noop,
+          selectionChanged: noop
+        };
+
+        tg.ready = noop;
+        tg.expand = noop;
+        tg.close = noop;
+        tg.enableClosingConfirmation = noop;
+        tg.disableClosingConfirmation = noop;
+        tg.onEvent = noop;
+        tg.offEvent = noop;
+        tg.sendData = noop;
+        tg.switchInlineQuery = noop;
+        tg.openLink = noop;
+        tg.openTelegramLink = noop;
+        tg.openInvoice = noop;
+        tg.showPopup = noop;
+        tg.showAlert = noop;
+        tg.showConfirm = noop;
+        tg.showScanQrPopup = noop;
+        tg.closeScanQrPopup = noop;
+        tg.readTextFromClipboard = noop;
+        tg.requestWriteAccess = noop;
+        tg.requestContact = noop;
+        tg.setHeaderColor = noop;
+        tg.setBackgroundColor = noop;
+
+        console.log('[DEMO MODE] Browser access enabled');
+      }
+    })();
+  </script>
+
+  <!-- Prevent Vite HMR WebSocket errors -->
+  <script>
+    window.addEventListener('unhandledrejection', function(event) {
+      if (
+        event.reason &&
+        event.reason.message &&
+        (
+          event.reason.message.includes('WebSocket') ||
+          event.reason.message.includes('wss://localhost:undefined')
+        )
+      ) {
+        console.warn(
+          '[VITE HMR] Suppressed WebSocket error:',
+          event.reason.message
+        );
+        event.preventDefault();
+      }
+    });
+  </script>
+
+  <!-- Telegram fullscreen / visual setup -->
+  <script>
+    (function () {
+      const tg = window.Telegram && window.Telegram.WebApp;
+
+      if (!tg) return;
+
+      try {
+        if (typeof tg.ready === 'function') {
+          tg.ready();
+        }
+
+        if (typeof tg.expand === 'function') {
+          tg.expand();
+        }
+
+        if (typeof tg.setHeaderColor === 'function') {
+          tg.setHeaderColor('#121212');
+        }
+
+        if (typeof tg.setBackgroundColor === 'function') {
+          tg.setBackgroundColor('#121212');
+        }
+
+        if (typeof tg.requestFullscreen === 'function') {
+          try {
+            tg.requestFullscreen();
+          } catch (e) {}
+        }
+
+        if (typeof tg.disableVerticalSwipes === 'function') {
+          try {
+            tg.disableVerticalSwipes();
+          } catch (e) {}
+        }
+
+        try {
+          var platform = tg.platform;
+          var inset =
+            tg.contentSafeAreaInset ||
+            tg.safeAreaInset ||
+            {};
+
+          var top = inset.top || 0;
+
+          if (
+            platform === 'ios' &&
+            top === 0 &&
+            tg.isFullscreen
+          ) {
+            top = 47;
+          }
+
+          var bottom =
+            platform === 'android'
+              ? 16
+              : (inset.bottom || 0);
+
+          var rootStyle =
+            document.documentElement.style;
+
+          rootStyle.setProperty(
+            '--safe-area-top',
+            top + 'px'
+          );
+
+          rootStyle.setProperty(
+            '--safe-area-bottom',
+            bottom + 'px'
+          );
+
+          rootStyle.setProperty(
+            '--tma-top-bar-height',
+            (platform === 'ios' ? 52 : 48) + 'px'
+          );
+
+          rootStyle.setProperty(
+            '--header-extra-offset',
+            (platform === 'ios' ? 44 : 24) + 'px'
+          );
+        } catch (e) {}
+
+        document.documentElement.style.setProperty(
+          '--app-height',
+          window.innerHeight + 'px'
+        );
+
+      } catch (e) {
+        console.warn('[TELEGRAM] Setup warning:', e);
+      }
+    })();
+  </script>
+
+  <!-- Styles -->
+  <style>
+    html,
+    body {
+      min-height: calc(100vh + 1px);
+      overflow-y: auto;
+      background-color: #121212;
+      margin: 0;
+      padding: 0;
+      touch-action: pan-x pan-y;
+    }
+
+    body {
+      color: #ffffff;
+    }
+
+    /* Hide Replit / development banners */
+    [data-dev-banner],
+    [class*="dev-banner"],
+    [id*="dev-banner"],
+    iframe[src*="replit"],
+    iframe[src*="replit.com/badge"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      height: 0 !important;
+      width: 0 !important;
+    }
+
+    /* Splash screen */
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+      background:
+        linear-gradient(
+          to bottom,
+          #1a1a1a,
+          #121212
+        );
+    }
+
+    #splash .rkt-icon {
+      animation:
+        rkt-float 2s ease-in-out infinite;
+    }
+
+    #splash .rkt-spinner {
+      margin-top: 20px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+
+      border:
+        2px solid
+        rgba(135, 116, 225, 0.25);
+
+      border-top-color: #8774E1;
+
+      animation:
+        rkt-spin 0.8s linear infinite;
+    }
+
+    @keyframes rkt-float {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+
+    @keyframes rkt-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #splash .rkt-icon {
+        animation: none;
+      }
+
+      #splash .rkt-spinner {
+        animation-duration: 2s;
+      }
+    }
+  </style>
+
+  <!-- Fonts -->
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  />
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Rocket image -->
+  <link
+    rel="preload"
+    href="./rocket-static.png?v=3"
+    as="image"
+    fetchpriority="high"
+  />
+
+  <!-- WebSocket routing -->
+  <script>
+    (function () {
+      const NativeWebSocket = window.WebSocket;
+
+      window.WebSocket = class extends NativeWebSocket {
+        constructor(url, protocols) {
+
+          let remoteUrl = url;
+
+          if (
+            typeof url === 'string' &&
+            url.includes('/ws/ton-rocket')
+          ) {
+            remoteUrl =
+              (
+                window.location.protocol === 'https:'
+                  ? 'wss://'
+                  : 'ws://'
+              ) +
+              window.location.host +
+              '/ws/ton-rocket';
+          }
+
+          super(remoteUrl, protocols);
+        }
+      };
+    })();
+  </script>
+
+  <!-- App assets -->
+  <script
+    type="module"
+    crossorigin
+    src="./home.js">
+  </script>
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/vendor-react-DuI9AjiL.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/index-BqAvkz3n.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/useMutation-yLzzg8q5.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/TonIcon-OWFDzkDL.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/gift-backdrop-chip-Cs_hU-KX.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/vendor-lottie-BnY8aWDa.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/tap-only-Ch1kky8A.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/vendor-motion-CAKkmbc9.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/rocket-BLffl1Df.js"
+  />
+
+  <link
+    rel="modulepreload"
+    crossorigin
+    href="./assets/dollar-sign-CamwDC6-.js"
+  />
+
+  <link
+    rel="stylesheet"
+    crossorigin
+    href="./assets/index-CMC1gBvZ.css"
+  />
+</head>
+
+<body>
+
+  <!-- Splash -->
+  <div id="splash">
+
+    <svg
+      class="rkt-icon"
+      width="80"
+      height="80"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+
+      <path
+        d="M12 2C12 2 8 6 8 12C8 14.5 9 16.5 10 18L8 22H16L14 18C15 16.5 16 14.5 16 12C16 6 12 2 12 2Z"
+        fill="url(#rkt-splash-grad)"
+        stroke="#8774E1"
+        stroke-width="1"
+      />
+
+      <circle
+        cx="12"
+        cy="10"
+        r="2"
+        fill="#1a1a1a"
+      />
+
+      <path
+        d="M8 12C6 12 4 14 4 14L6 16C6 16 7 14 8 14"
+        fill="#8774E1"
+        opacity="0.8"
+      />
+
+      <path
+        d="M16 12C18 12 20 14 20 14L18 16C18 16 17 14 16 14"
+        fill="#8774E1"
+        opacity="0.8"
+      />
+
+      <path
+        d="M10 22L9 24H15L14 22"
+        fill="#FF6B35"
+      />
+
+      <path
+        d="M11 22L10.5 25H13.5L13 22"
+        fill="#FFD700"
+      />
+
+      <defs>
+        <linearGradient
+          id="rkt-splash-grad"
+          x1="12"
+          y1="2"
+          x2="12"
+          y2="22"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop
+            offset="0%"
+            stop-color="#a594f9"
+          />
+
+          <stop
+            offset="100%"
+            stop-color="#8774E1"
+          />
+        </linearGradient>
+      </defs>
+
+    </svg>
+
+    <div class="rkt-spinner"></div>
+
+  </div>
+
+  <!-- React root -->
+  <div id="root"></div>
+
+  <!-- Boot guard -->
+  <script>
+    (function () {
+
+      var bootedByApp = false;
+
+      function hideSplashEl() {
+        var el =
+          document.getElementById('splash');
+
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      }
+
+      window.hideSplash = function () {
+        bootedByApp = true;
+
+        try {
+          sessionStorage.removeItem(
+            '__rkt_boot_reloaded'
+          );
+        } catch (e) {}
+
+        hideSplashEl();
+      };
+
+      function rendered() {
+        var root =
+          document.getElementById('root');
+
+        return !!(
+          root &&
+          root.childElementCount > 0
+        );
+      }
+
+      function showFallback() {
+
+        hideSplashEl();
+
+        var root =
+          document.getElementById('root');
+
+        if (!root) return;
+
+        root.innerHTML =
+          '<div style="' +
+          'position:fixed;' +
+          'inset:0;' +
+          'display:flex;' +
+          'align-items:center;' +
+          'justify-content:center;' +
+          'background:#121212;' +
+          'color:#fff;' +
+          'font-family:-apple-system,system-ui,sans-serif;' +
+          'padding:24px;' +
+          'text-align:center">' +
+
+          '<div style="max-width:300px">' +
+
+          '<div style="font-size:44px;margin-bottom:16px">' +
+          '🚀' +
+          '</div>' +
+
+          '<div style="' +
+          'font-size:16px;' +
+          'font-weight:600;' +
+          'margin-bottom:8px">' +
+          'Couldn’t load the game' +
+          '</div>' +
+
+          '<div style="' +
+          'font-size:13px;' +
+          'color:#9a9a9a;' +
+          'margin-bottom:20px">' +
+          'Check your connection and try again.' +
+          '</div>' +
+
+          '<button id="rkt-retry" style="' +
+          'background:#8774E1;' +
+          'color:#fff;' +
+          'border:none;' +
+          'padding:12px 24px;' +
+          'border-radius:12px;' +
+          'font-size:14px;' +
+          'font-weight:600">' +
+          'Reload' +
+          '</button>' +
+
+          '</div>' +
+          '</div>';
+
+        var button =
+          document.getElementById('rkt-retry');
+
+        if (button) {
+          button.addEventListener(
+            'click',
+            function () {
+
+              try {
+                sessionStorage.removeItem(
+                  '__rkt_boot_reloaded'
+                );
+              } catch (e) {}
+
+              location.reload();
+            }
+          );
+        }
+      }
+
+      setTimeout(function () {
+
+        if (bootedByApp) {
+          return;
+        }
+
+        if (rendered()) {
+
+          try {
+            sessionStorage.removeItem(
+              '__rkt_boot_reloaded'
+            );
+          } catch (e) {}
+
+          hideSplashEl();
+
+          return;
+        }
+
+        var canReload = false;
+
+        try {
+
+          if (
+            !sessionStorage.getItem(
+              '__rkt_boot_reloaded'
+            )
+          ) {
+
+            sessionStorage.setItem(
+              '__rkt_boot_reloaded',
+              '1'
+            );
+
+            canReload = true;
+          }
+
+        } catch (e) {}
+
+        if (canReload) {
+          location.reload();
+          return;
+        }
+
+        showFallback();
+
+      }, 8000);
+
+    })();
+  </script>
+
+  <!-- Hide development banners -->
+  <script>
+    (function () {
+
+      const style =
+        document.createElement('style');
+
+      style.textContent =
+        '[data-dev-banner],' +
+        '[class*="dev-banner"],' +
+        '[id*="dev-banner"],' +
+        'iframe[src*="replit.com/badge"]' +
+        '{' +
+        'display:none!important;' +
+        'visibility:hidden!important;' +
+        'pointer-events:none!important;' +
+        'height:0!important;' +
+        'width:0!important;' +
+        '}';
+
+      document.head.appendChild(style);
+
+    })();
+  </script>
+
+<script>
+(function(){
+  const path=location.pathname;
+  const isRocket=path==='/ton-rocket'||path==='/rocket';
+  const isDeveloper=path==='/developer';
+  function tg(){return window.Telegram&&window.Telegram.WebApp}
+  function goHome(){ history.pushState({},'', '/'); location.reload(); }
+  function setBack(){
+    const t=tg();
+    const needsBack=isRocket||isDeveloper;
+    if(t&&t.BackButton){
+      try{ t.BackButton.offClick?.(goHome); }catch(e){}
+      if(needsBack){ t.BackButton.show(); t.BackButton.onClick(goHome); }
+      else t.BackButton.hide();
+    }
+    if(needsBack){
+      let b=document.getElementById('tonix-page-back');
+      if(!b){
+        b=document.createElement('button'); b.id='tonix-page-back'; b.textContent='‹ Back';
+        b.style.cssText='position:fixed;top:calc(var(--safe-area-top,0px) + 8px);left:12px;z-index:100000;border:1px solid #444;background:#202020;color:#fff;border-radius:12px;padding:8px 13px;font-weight:700;font-size:14px;';
+        b.onclick=goHome; document.body.appendChild(b);
+      }
+    }
+  }
+  setBack();
+  window.addEventListener('popstate', setBack);
+  window.addEventListener('load', setBack);
+  if(isRocket) return;
+  if(isDeveloper){
+    const root=document.getElementById('root');
+    const splash=document.getElementById('splash');
+    const user=(tg()&&tg().initDataUnsafe&&tg().initDataUnsafe.user)||{};
+    const uid=String(user.id||'');
+    if(uid!=='7795559285'){
+      root.innerHTML='<div style="min-height:100vh;background:#121212;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Poppins,system-ui;padding:24px;text-align:center"><div><div style="font-size:48px">🔒</div><h2>خاصة بالDev فقط</h2><button id="dev-home" style="padding:12px 24px;border:0;border-radius:12px;background:#8774E1;color:#fff;font-weight:700">Back</button></div></div>';
+      document.getElementById('dev-home').onclick=goHome; if(splash)splash.remove(); return;
+    }
+    root.innerHTML='<div style="min-height:100vh;background:#121212;color:#fff;font-family:Poppins,system-ui,sans-serif;padding:70px 16px 30px;max-width:520px;margin:auto"><div style="background:linear-gradient(145deg,#242424,#171717);border:1px solid #5b3aa8;border-radius:20px;padding:20px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">🔐 لوحة Dev</h2><b style="color:#b895ff">DEVELOPER</b></div><p style="color:#aaa">Telegram ID: '+uid+'</p><div id="dev-balance" style="font-size:28px;font-weight:800;margin:18px 0">500.00 TON</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="devx" data-act="users">👥 المستخدمين</button><button class="devx" data-act="balances">💰 الأرصدة</button><button class="devx" data-act="games">🎮 الألعاب</button><button class="devx" data-act="rocket">🚀 Rocket</button><button class="devx" data-act="activity">📝 النشاط</button><button class="devx" data-act="settings">⚙️ الإعدادات</button></div></div><button id="dev-back" style="width:100%;margin-top:14px;padding:14px;border-radius:14px;border:1px solid #444;background:#202020;color:#fff;font-weight:800">‹ Back to Home</button></div><style>.devx{padding:14px;border-radius:13px;border:1px solid #3b3b3b;background:#222;color:#fff;font-weight:800}.devx:active{transform:scale(.98)}</style>';
+    document.getElementById('dev-back').onclick=goHome;
+    document.querySelectorAll('.devx').forEach(b=>b.onclick=()=>alert('تم فتح: '+b.dataset.act+' — نربط وظائف Dev الفعلية بالخطوة التالية.'));
+    if(splash)splash.remove(); return;
+  }
+  const root=document.getElementById('root');
+  const splash=document.getElementById('splash');
+  if(!root) return;
+  const user=(tg()&&tg().initDataUnsafe&&tg().initDataUnsafe.user)||{first_name:'Player',username:'player'};
+  const uid=user.id?String(user.id):'';
+  const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let balance='500';
+  fetch('/api/wallet/balance/'+encodeURIComponent(uid),{headers:{'x-telegram-init-data':tg()?.initData||''},cache:'no-store'})
+    .then(r=>r.ok?r.json():null).then(d=>{if(d&&d.balanceTON!=null){balance=Number(d.balanceTON).toFixed(2).replace(/\.00$/,''); const b=document.getElementById('home-balance'); if(b)b.textContent=balance; const p=document.getElementById('profile-balance'); if(p)p.textContent=balance;}}).catch(()=>{});
+  root.innerHTML=`
+  <div class="tonix-home">
+    <header class="topbar">
+      <div class="profile-mini">
+        <div class="avatar">${esc((user.first_name||user.username||'P')[0]).toUpperCase()}</div>
+        <div class="identity"><div class="name">${esc(user.first_name||'Player')} <span class="verified">✓</span></div><div class="handle">@${esc(user.username||'player')}</div></div>
+      </div>
+      <div class="balance-box">
+        <div class="balance-label">BALANCE</div>
+        <div class="balance-row"><span id="home-balance">${balance}</span><span class="ton-word">TON</span><img src="./images/ton_symbol.svg" alt="TON"></div>
+      </div>
+      <button class="deposit" id="deposit-btn">Deposit <b>+</b></button>
+      <button class="bell" aria-label="Notifications">♧<i></i></button>
+    </header>
+
+    <main class="dashboard">
+      <section class="game-grid">
+        <button class="game-card rocket-card" id="rocket-btn">
+          <div class="card-art rocket-art"><img src="./tonix-rocket.png" alt="Rocket"></div>
+          <div class="card-title">ROCKET</div><div class="card-sub">Crash Game</div>
+        </button>
+        <button class="game-card pvp-card" data-go="/pvp">
+          <div class="card-art swords-art"><span>⚔️</span></div>
+          <div class="card-title">PVP</div><div class="card-sub">Fight &amp; Win</div>
+        </button>
+        <button class="game-card games-card" data-go="/games">
+          <div class="card-art games-art"><span>🎮</span><em>◆</em></div>
+          <div class="card-title">GAMES</div><div class="card-sub">More Games</div>
+        </button>
+      </section>
+
+      <section class="info-grid">
+        <div class="panel gift-panel">
+          <div class="panel-heading"><span>🎁</span> FREE GIFT</div>
+          <div class="gift-body"><div class="next">Next in</div><strong>05:23:47</strong><div class="gift-box">🎁</div></div>
+        </div>
+        <div class="panel referral-panel">
+          <div class="panel-heading"><span>👥</span> REFERRAL</div>
+          <div class="small-label">Total Referrals</div><div class="big-number">12</div>
+          <div class="small-label">Earned</div><div class="earned">50.00 TON</div>
+          <button class="panel-btn" data-go="/invite">View Details <span>›</span></button>
+        </div>
+        <div class="panel profile-panel">
+          <div class="panel-heading"><span>♟</span> PROFILE</div>
+          <div class="profile-row"><div class="avatar large">${esc((user.first_name||user.username||'P')[0]).toUpperCase()}</div><div><div class="profile-name">${esc(user.first_name||'Player')}</div><div class="handle">@${esc(user.username||'player')}</div></div></div>
+          <div class="small-label">Balance</div><div class="profile-balance"><span id="profile-balance">${balance}</span> TON <img src="./images/ton_symbol.svg" alt="TON"></div>
+          <button class="panel-btn" data-go="/profile">View Profile <span>›</span></button>
+        </div>
+      </section>
+
+      <section class="panel referral-progress">
+        <div class="section-head"><div class="panel-heading"><span>▥</span> REFERRAL PROGRESS</div><span class="progress-pill">12 / 50 <small>Referrals</small></span></div>
+        <div class="milestones">
+          ${[['3','15 TON','done'],['5','25 TON','done'],['10','50 TON','active'],['15','65 TON','locked'],['20','100 TON','locked'],['25','125 TON','locked'],['35','250 TON','locked'],['45','500 TON','locked'],['50','1000 TON','locked']].map((m,i)=>`<div class="mile ${m[2]}"><span>${m[0]}</span><b></b><small>${m[1]}</small>${m[2]==='locked'?'<i>♙</i>':m[2]==='done'?'<i>✓</i>':''}</div>`).join('')}
+        </div>
+        <div class="progress-line"><span></span></div>
+        <div class="info-foot"><span>Get rewards for each milestone you reach!</span><button>ⓘ More Info</button></div>
+      </section>
+
+      <section class="panel activity">
+        <div class="section-head"><div class="panel-heading"><span>◷</span> RECENT ACTIVITY</div><button class="view-all">View All</button></div>
+        <div class="activity-row"><span class="act-icon green">🎮</span><div><b>Referral Reward</b><small>User joined via your link</small></div><strong>+50.00 TON<small>2m ago</small></strong></div>
+        <div class="activity-row"><span class="act-icon purple">🎁</span><div><b>Milestone Reward</b><small>Reached 5 referrals</small></div><strong>+25.00 TON<small>5m ago</small></strong></div>
+        <div class="activity-row"><span class="act-icon blue">🎮</span><div><b>Played Rocket</b><small>Multiplier: 2.35x</small></div><strong>+23.50 TON<small>1h ago</small></strong></div>
+        <div class="activity-row"><span class="act-icon red">↗</span><div><b>Played PVP</b><small>You lost the battle</small></div><strong class="loss">-10.00 TON<small>2h ago</small></strong></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button data-go="/statistics"><span>▥</span><small>Statistics</small></button>
+      <button data-go="/gifts"><span>🎁</span><small>Gifts</small></button>
+      <button data-go="/" class="active"><span>⌂</span><small>Home</small></button>
+      <button data-go="/leaderboard"><span>♜</span><small>Ranking</small></button>
+      <button id="dev-nav"><span>⚙</span><small>Dev</small></button>
+    </nav>
+  </div>`;
+  const style=document.createElement('style');style.textContent=`
+  *{box-sizing:border-box}.tonix-home{min-height:100vh;background:radial-gradient(circle at 50% -10%,rgba(90,50,170,.18),transparent 35%),#03070f;color:#fff;font-family:Poppins,system-ui,sans-serif;padding:18px 14px 92px;overflow-x:hidden}.topbar{max-width:980px;margin:auto;display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center}.profile-mini{display:flex;align-items:center;gap:10px}.avatar{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#463075,#090b18 70%);border:1px solid #8555ff;box-shadow:0 0 18px rgba(130,75,255,.25);font-weight:800;font-size:20px}.avatar.large{width:52px;height:52px}.identity .name{font-size:18px;font-weight:700}.verified{display:inline-flex;width:17px;height:17px;align-items:center;justify-content:center;border-radius:50%;background:#199cff;font-size:11px}.handle{color:#9ba0ad;font-size:13px}.balance-box{min-width:330px;background:linear-gradient(145deg,rgba(13,19,31,.94),rgba(7,11,20,.94));border:1px solid #263044;border-radius:18px;padding:12px 18px}.balance-label{font-size:12px;color:#a6aab5;letter-spacing:.8px}.balance-row{display:flex;align-items:center;gap:7px;font-size:26px;font-weight:700}.ton-word{color:#b38aff;font-size:18px;font-weight:500}.balance-row img,.profile-balance img{width:22px;height:22px}.deposit{border:1px solid #7446d8;background:linear-gradient(135deg,#7c37df,#5b25c5);color:#fff;border-radius:12px;padding:12px 18px;font-size:16px;font-weight:700;white-space:nowrap}.deposit b{display:inline-flex;width:22px;height:22px;border-radius:50%;background:#c9b5ff;color:#3d207c;align-items:center;justify-content:center;margin-left:7px}.bell{position:relative;width:56px;height:56px;border-radius:16px;border:1px solid #293243;background:#0a101b;color:#c8cbd4;font-size:28px}.bell i{position:absolute;right:9px;top:8px;width:9px;height:9px;border-radius:50%;background:#ff3f58}.dashboard{max-width:980px;margin:18px auto 0}.game-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.game-card{min-height:275px;border-radius:20px;border:1px solid #283248;background:linear-gradient(145deg,#07101d,#050a13);color:#fff;position:relative;overflow:hidden;padding:0 12px 18px;text-align:center}.game-card:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,rgba(95,49,210,.18),transparent 55%);pointer-events:none}.card-art{height:205px;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}.rocket-art img{width:220px;height:220px;object-fit:contain;filter:drop-shadow(0 12px 16px rgba(134,65,255,.32))}.swords-art span{font-size:105px;filter:drop-shadow(0 8px 15px rgba(70,100,255,.25));transform:rotate(-8deg)}.games-art span{font-size:105px;filter:drop-shadow(0 8px 15px rgba(90,60,255,.25))}.games-art em{position:absolute;right:18%;top:35%;font-style:normal;color:#8d6cff;font-size:28px}.card-title{font-size:27px;font-weight:800;position:relative;z-index:2}.card-sub{font-size:16px;color:#9ca2b0;position:relative;z-index:2}.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px}.panel{background:linear-gradient(145deg,rgba(8,15,26,.96),rgba(5,10,18,.96));border:1px solid #283248;border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.12)}.panel-heading{font-size:16px;color:#b78cff;font-weight:700;display:flex;align-items:center;gap:8px}.gift-panel{min-height:245px}.gift-body{height:185px;position:relative;padding-top:50px}.next{color:#aeb3be;font-size:15px}.gift-body strong{font-size:20px}.gift-box{font-size:90px;position:absolute;right:16px;bottom:8px;filter:drop-shadow(0 0 20px rgba(155,85,255,.55))}.small-label{color:#a9adb8;font-size:14px;margin-top:18px}.big-number{font-size:24px;font-weight:700}.earned{color:#34e36e;font-size:18px;margin-top:4px}.panel-btn{margin-top:12px;width:100%;height:42px;border-radius:12px;border:1px solid #293b55;background:#091321;color:#fff;font-size:15px}.panel-btn span{float:right;font-size:23px;line-height:15px}.profile-row{display:flex;align-items:center;gap:12px;margin-top:16px}.profile-name{font-size:18px;font-weight:700}.profile-balance{color:#2aa8ff;font-size:18px}.referral-progress,.activity{margin-top:12px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.progress-pill{border:1px solid #6043a5;color:#c9a9ff;border-radius:10px;padding:6px 10px;font-weight:700}.progress-pill small{color:#fff;font-weight:500}.milestones{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-top:28px;position:relative;z-index:2}.mile{text-align:center;color:#d4d7de;position:relative}.mile span{display:block;font-size:14px;margin-bottom:9px}.mile b{display:block;margin:auto;width:22px;height:22px;border-radius:50%;background:#202a39;border:1px solid #354158;box-shadow:0 0 0 4px #0a111d}.mile.done b,.mile.active b{background:#7540e8;border-color:#b188ff}.mile.active b{box-shadow:0 0 0 3px #0a111d,0 0 0 5px #9a63ff}.mile small{display:block;margin-top:12px;font-size:12px}.mile.done small{color:#35e969}.mile i{display:block;font-style:normal;font-size:12px;margin-top:9px;color:#7f8794}.progress-line{height:6px;background:#202a39;border-radius:10px;margin-top:-14px;position:relative;z-index:1}.progress-line span{display:block;width:31%;height:100%;background:linear-gradient(90deg,#8a43ff,#6934d8);border-radius:10px}.info-foot{display:flex;align-items:center;justify-content:space-between;margin-top:20px;color:#aeb3bd;font-size:13px}.info-foot button,.view-all{border:1px solid #34435a;background:#0a1422;color:#fff;border-radius:10px;padding:7px 12px}.activity-row{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #172233}.activity-row:first-of-type{margin-top:12px}.act-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px}.green{background:rgba(45,200,88,.2)}.purple{background:rgba(143,75,255,.2)}.blue{background:rgba(45,133,255,.2)}.red{background:rgba(255,65,75,.2)}.activity-row b{display:block;font-size:14px}.activity-row small{display:block;color:#9299a6;font-size:11px;margin-top:2px}.activity-row>strong{color:#31df66;text-align:right;font-size:14px}.activity-row>strong.loss{color:#ff535b}.bottom-nav{position:fixed;left:12px;right:12px;bottom:10px;z-index:100;max-width:980px;margin:auto;background:rgba(7,13,23,.96);border:1px solid #263248;border-radius:22px;padding:7px;display:grid;grid-template-columns:repeat(5,1fr);backdrop-filter:blur(16px)}.bottom-nav button{border:0;background:transparent;color:#aeb4c0;padding:5px;border-radius:18px;font-size:24px}.bottom-nav button span{display:block;line-height:1}.bottom-nav button small{font-size:12px;display:block;margin-top:3px}.bottom-nav button.active{color:#c092ff;text-shadow:0 0 18px rgba(153,81,255,.9)}.rkt-custom-rocket{filter:drop-shadow(0 10px 18px rgba(126,55,255,.35))}.rkt-center-in .rkt-custom-rocket{width:min(140px,18vh)!important;height:min(140px,18vh)!important}.rkt-shake{display:flex;align-items:center;justify-content:center}.tx-modal{position:fixed;z-index:200000;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,460px);background:#0b1220;border:1px solid #33415c;border-radius:20px;padding:20px;color:#fff;box-shadow:0 20px 80px rgba(0,0,0,.55)}.tx-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:-1}.tx-close{position:absolute;right:12px;top:10px;border:0;background:#1b2638;color:#fff;border-radius:10px;width:34px;height:34px;font-size:25px}.tx-modal h2{margin:0 38px 16px 0;font-size:20px}.tx-body{font-size:15px;line-height:1.7}.tx-muted{color:#aab2c0}.tx-input{display:block;width:100%;margin:7px 0 13px;padding:13px;border-radius:12px;border:1px solid #34425a;background:#07101d;color:#fff;outline:none}.tx-primary{width:100%;padding:13px;margin-top:10px;border:0;border-radius:12px;background:linear-gradient(135deg,#7c37df,#5b25c5);color:#fff;font-weight:800}.tx-error{min-height:22px;color:#ff6670;margin-top:5px}.tx-ref{word-break:break-all;background:#07101d;border:1px solid #28354b;border-radius:12px;padding:12px;margin:10px 0;color:#c6b0ff;font-size:13px}@media(max-width:760px){.tonix-home{padding:12px 10px 88px}.topbar{grid-template-columns:1fr auto;gap:8px}.balance-box{grid-column:1/-1;grid-row:2;min-width:0}.deposit{grid-column:1}.bell{grid-column:2}.profile-mini{grid-column:1}.game-grid{gap:7px}.game-card{min-height:180px;padding:0 5px 12px}.card-art{height:125px}.rocket-art img{width:130px;height:130px}.swords-art span,.games-art span{font-size:58px}.games-art em{font-size:17px}.card-title{font-size:16px}.card-sub{font-size:11px}.info-grid{grid-template-columns:1fr 1fr}.gift-panel{grid-row:span 1}.profile-panel{grid-column:1/-1}.gift-body{height:145px}.gift-box{font-size:65px}.panel{padding:11px}.panel-heading{font-size:12px}.milestones{gap:0;overflow:hidden}.mile span{font-size:10px}.mile small{font-size:8px}.info-foot{font-size:9px}.info-foot button{font-size:10px;padding:5px}.activity-row{grid-template-columns:34px 1fr auto}.activity-row>strong{font-size:11px}.bottom-nav{left:6px;right:6px}.bottom-nav button{font-size:20px}.bottom-nav button small{font-size:9px}}
+  `;document.head.appendChild(style);
+  function closeModal(){const m=document.getElementById('tonix-modal');if(m)m.remove();}
+  function openModal(title,body,actions=''){
+    closeModal();
+    const m=document.createElement('div');m.id='tonix-modal';m.innerHTML=`<div class="tx-modal-backdrop"></div><div class="tx-modal"><button class="tx-close" id="tx-close">×</button><h2>${title}</h2><div class="tx-body">${body}</div>${actions}</div>`;
+    document.body.appendChild(m);document.getElementById('tx-close').onclick=closeModal; m.querySelector('.tx-modal-backdrop').onclick=closeModal;
+  }
+  function transferModal(){
+    const current=Number(balance)||0;
+    openModal('↔️ تحويل TON بين اللاعبين',`<p class="tx-muted">رصيدك الحالي: <b>${current.toFixed(2)} TON</b></p><label>معرّف اللاعب أو @username</label><input id="tx-recipient" class="tx-input" placeholder="مثال: 8687584206 أو @username"><label>المبلغ</label><input id="tx-amount" class="tx-input" type="number" min="0.01" step="0.01" placeholder="50"><div id="tx-error" class="tx-error"></div>`,`<button id="tx-send" class="tx-primary">تحويل الآن</button>`);
+    document.getElementById('tx-send').onclick=async()=>{
+      const recipient=document.getElementById('tx-recipient').value.trim();const amount=Number(document.getElementById('tx-amount').value);const err=document.getElementById('tx-error');err.textContent='';
+      if(!recipient||!Number.isFinite(amount)||amount<=0){err.textContent='أدخل اللاعب والمبلغ بشكل صحيح';return;}
+      try{const r=await fetch('/api/wallet/transfer',{method:'POST',headers:{'Content-Type':'application/json','x-telegram-init-data':tg()?.initData||''},body:JSON.stringify({recipient,amount,chatId:uid})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success)throw new Error(d.error||'تعذر تنفيذ التحويل');balance=Number(d.senderBalance??balance);const b=document.getElementById('home-balance');if(b)b.textContent=Number(balance).toFixed(2).replace(/\.00$/,'');const pb=document.getElementById('profile-balance');if(pb)pb.innerHTML='<img src="./images/ton_symbol.svg"> '+Number(balance).toFixed(2)+' TON';openModal('✅ تم التحويل',`<p>تم تحويل <b>${Number(amount).toFixed(2)} TON</b> إلى <b>${esc(d.recipientName||recipient)}</b>.</p><p class="tx-muted">رصيدك الجديد: ${Number(balance).toFixed(2)} TON</p>`,`<button id="tx-done" class="tx-primary">تم</button>`);document.getElementById('tx-done').onclick=closeModal;}catch(e){err.textContent=e.message||'تعذر تنفيذ التحويل';}
+    };
+  }
+  document.getElementById('deposit-btn').onclick=transferModal;
+  function go(p){history.pushState({},'',p); location.reload();}
+  document.getElementById('rocket-btn').onclick=()=>go('/ton-rocket');
+  document.querySelectorAll('[data-go]').forEach(b=>{b.onclick=()=>{const p=b.dataset.go;if(p==='/invite')return openModal('🔗 رابط الإحالة',`<p>مكافأة الإحالة: <b>50 TON</b></p><div class="tx-ref">https://t.me/TONIX_BOT?start=ref_${uid||'player'}</div><button class="tx-primary" id="tx-copy">نسخ الرابط</button>`);if(p==='/profile')return openModal('👤 الملف الشخصي',`<p>المستخدم: <b>${esc(user.first_name||'Player')}</b></p><p>الرصيد: <b>${Number(balance).toFixed(2)} TON</b></p>`);if(p==='/statistics'||p==='/gifts'||p==='/leaderboard'||p==='/games'||p==='/pvp')return openModal(p==='/statistics'?'▥ الإحصائيات':p==='/gifts'?'🎁 الهدايا':p==='/leaderboard'?'♜ الترتيب':p==='/pvp'?'⚔️ PVP':'🎮 الألعاب',`<p class="tx-muted">هذه الصفحة نجهز وظائفها بالتحديث القادم.</p>`);go(p);};});
+  function dev(){
+    const userId=String((tg()&&tg().initDataUnsafe&&tg().initDataUnsafe.user&&tg().initDataUnsafe.user.id)||uid||'');
+    if(userId==='7795559285'){return go('/developer');}
+    fetch('/api/admin/check-access',{headers:{'x-telegram-init-data':tg()?.initData||''},cache:'no-store'}).then(r=>r.ok?r.json():{isDeveloper:false}).then(d=>{if(d.isDeveloper)go('/developer');else alert('خاصة بالDev فقط');}).catch(()=>alert('خاصة بالDev فقط'));
+  }
+  const devBtn=document.getElementById('dev-btn');if(devBtn)devBtn.onclick=dev;const devNav=document.getElementById('dev-nav');if(devNav)devNav.onclick=dev;
+  if(splash) splash.remove();
+})();
+</script>
+</body>
+    </html>
